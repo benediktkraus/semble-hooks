@@ -1,0 +1,8 @@
+node_modules/
+dist/
+*.log
+.semble/
+CLAUDE.md
+SESSION-STATE.md
+PROGRESS.md
+.internal/
