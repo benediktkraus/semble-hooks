@@ -1,0 +1,27 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${SEMBLE_HOOKS_ROOT}/scripts/code-bootstrap.mjs",
+            "timeout": 120
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${SEMBLE_HOOKS_ROOT}/scripts/code-recall.mjs",
+            "timeout": 8
+          }
+        ]
+      }
+    ]
+  }
+}

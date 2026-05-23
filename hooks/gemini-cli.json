@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "BeforeAgent": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${extensionPath}/scripts/code-recall.mjs",
+            "name": "semble-recall",
+            "description": "Inject relevant code chunks from current project",
+            "timeout": 8000
+          }
+        ]
+      }
+    ]
+  }
+}

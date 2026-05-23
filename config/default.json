@@ -1,0 +1,10 @@
+{
+  "topK": 5,
+  "semblePath": "semble",
+  "timeout": 8000,
+  "bootstrapTimeout": 120000,
+  "minQueryLength": 3,
+  "includeTextFiles": false,
+  "excludePatterns": [],
+  "debug": false
+}
