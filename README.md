@@ -2,10 +2,12 @@
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D18-green.svg)](https://nodejs.org)
+[![Semble](https://img.shields.io/badge/powered%20by-Semble-purple.svg)](https://github.com/MinishLab/semble)
+[![CLIs](https://img.shields.io/badge/CLIs-Claude%20Code%20%7C%20Codex%20%7C%20Gemini%20%7C%20OpenClaw-orange.svg)](#supported-clis)
 
-Code-intelligence hooks for AI coding CLIs. Every prompt gets the 5 most relevant code chunks from your project — automatically, locally, zero config.
+Code-intelligence hooks for AI coding CLIs. Every prompt gets the most relevant code chunks from your project — automatically, locally, zero config.
 
-Powered by [Semble](https://github.com/MinishLab/semble) semantic code search (98% token savings vs grep+read).
+Powered by [Semble](https://github.com/MinishLab/semble) semantic code search (98% token savings vs grep+read, CPU-only, no API key).
 
 ## How it works
 
@@ -14,45 +16,85 @@ You type a prompt
     ↓
 Hook calls `semble search` with your prompt
     ↓
-Semble finds relevant functions/classes (CPU-only, no API key)
+Semble finds relevant functions/classes (16MB static model, CPU-only)
     ↓
 Top-k code chunks injected as <relevant-code> into agent context
     ↓
 Agent understands your codebase without grep/read cycles
 ```
 
+**Before semble-hooks:** Agent spends 5-10 turns doing `grep` → `read` → `grep` → `read` to find relevant code. Burns tokens and time.
+
+**After semble-hooks:** Agent gets the 5 most relevant code chunks in the first turn. Answers are better and faster.
+
 ## Supported CLIs
 
 | CLI | Recall Hook | Bootstrap Hook |
 |-----|-------------|----------------|
 | [Claude Code](https://claude.ai/code) | UserPromptSubmit | SessionStart |
-| [Codex CLI](https://github.com/openai/codex) | UserPromptSubmit | — |
-| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | BeforeAgent | — |
-| [OpenClaw](https://github.com/benediktkraus/openclaw) | before_prompt_build | — |
+| [Codex CLI](https://github.com/openai/codex) | UserPromptSubmit | SessionStart |
+| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | BeforeAgent | SessionStart |
+| [OpenClaw](https://github.com/benediktkraus/openclaw) | before_prompt_build (plugin) | — |
+
+**Recall Hook** — runs on every prompt, injects relevant code chunks.
+**Bootstrap Hook** — runs on session start, warms up the Semble index for faster first search.
 
 ## Prerequisites
 
 - **Node.js** >= 18
-- **Semble** CLI: `pip install semble`
+- **Semble** CLI: `pip install semble` ([GitHub](https://github.com/MinishLab/semble))
 
 ## Install
 
 ```bash
 git clone https://github.com/benediktkraus/semble-hooks.git
 cd semble-hooks
-./install.sh all        # Install for all CLIs
-# or
-./install.sh claude-code  # Install for Claude Code only
-./install.sh codex        # Install for Codex CLI only
-./install.sh gemini       # Install for Gemini CLI only
-./install.sh openclaw     # Install for OpenClaw only
+./install.sh all          # All CLIs at once
+# or pick one:
+./install.sh claude-code  # Claude Code
+./install.sh codex        # Codex CLI
+./install.sh gemini       # Gemini CLI
+./install.sh openclaw     # OpenClaw
 ```
 
 The installer copies hooks to `~/.semble-hooks/` and registers them with your CLI.
 
+## What the agent sees
+
+When you type a prompt, the agent receives a `<relevant-code>` block with the most relevant code chunks from your project:
+
+```xml
+<relevant-code>
+The following code chunks from the current project may be relevant:
+### src/auth/login.ts:15-42 (score: 0.034)
+```typescript
+export async function handleLogin(req: Request) {
+  const { email, password } = req.body;
+  const user = await db.users.findByEmail(email);
+  if (!user || !await bcrypt.compare(password, user.hash)) {
+    throw new AuthError("Invalid credentials");
+  }
+  return createSession(user);
+}
+```
+
+### src/middleware/auth.ts:8-25 (score: 0.028)
+```typescript
+export function requireAuth(req, res, next) {
+  const token = req.headers.authorization?.replace("Bearer ", "");
+  if (!token) return res.status(401).json({ error: "No token" });
+  req.user = verifyJWT(token);
+  next();
+}
+```
+</relevant-code>
+```
+
+The agent sees exactly the code it needs — no grep, no read, no guessing.
+
 ## Configuration
 
-Config file: `~/.semble-hooks/config.json` (created on first run with defaults if missing).
+Config file: `~/.semble-hooks/config.json` (works without config — sensible defaults built in).
 
 ```json
 {
@@ -60,8 +102,7 @@ Config file: `~/.semble-hooks/config.json` (created on first run with defaults i
   "semblePath": "semble",
   "timeout": 8000,
   "debug": false,
-  "includeTextFiles": false,
-  "excludePatterns": []
+  "includeTextFiles": false
 }
 ```
 
@@ -84,33 +125,36 @@ Config file: `~/.semble-hooks/config.json` (created on first run with defaults i
 | `SEMBLE_HOOKS_DEBUG` | Set to `1` to enable debug logging |
 | `SEMBLE_HOOKS_DEBUG_LOG` | Custom log file path |
 
-## How it looks
+## Graceful degradation
 
-When you type a prompt, the agent sees:
+If semble is not installed or unavailable:
+- Hooks silently approve without injecting code context
+- No errors, no broken CLI sessions
+- Debug log shows `semble not found, skipping`
 
-```xml
-<relevant-code>
-The following code chunks from the current project may be relevant:
-### src/auth/login.ts:15-42 (score: 0.034)
-​```
-export async function handleLogin(req: Request) {
-  const { email, password } = req.body;
-  // ... relevant implementation
-}
-​```
+Install the hooks first, install semble later — everything still works.
 
-### src/middleware/auth.ts:8-25 (score: 0.028)
-​```
-export function requireAuth(req, res, next) {
-  // ... relevant implementation
-}
-​```
-</relevant-code>
+## Architecture
+
+```
+scripts/
+  config.mjs           # Config loader (defaults + JSON + ENV)
+  debug-log.mjs        # Structured JSON Lines logger
+  code-recall.mjs      # Recall hook — the core: prompt → semble search → inject
+  code-bootstrap.mjs   # Bootstrap hook — warms up semble index on session start
+hooks/
+  claude-code.json     # Hook definitions for Claude Code
+  codex-cli.json       # Hook definitions for Codex CLI
+  gemini-cli.json      # Hook definitions for Gemini CLI
+openclaw-plugin/
+  dist/index.js        # OpenClaw plugin (before_prompt_build hook)
+  openclaw.plugin.json # Plugin manifest
+install.sh             # Multi-CLI installer
 ```
 
-## Debug
+**Zero dependencies.** No `node_modules`, no build step, no `npm install`. Just Node.js built-ins + semble CLI.
 
-Enable logging to see what semble finds:
+## Debug
 
 ```bash
 export SEMBLE_HOOKS_DEBUG=1
@@ -122,39 +166,16 @@ Log format (JSON Lines):
 {"ts":"2026-05-22T19:25:23","hook":"code-recall","stage":"parsed","data":{"chunkCount":5,"files":["src/auth.ts","src/db.ts"]}}
 ```
 
-## Architecture
-
-```
-scripts/
-  config.mjs           # Config loader (defaults + JSON + ENV)
-  debug-log.mjs        # Structured JSON Lines logger
-  code-recall.mjs      # UserPromptSubmit hook (the main one)
-  code-bootstrap.mjs   # SessionStart warmup hook
-hooks/
-  claude-code.json     # Hook definitions for Claude Code
-  codex-cli.json       # Hook definitions for Codex CLI
-  gemini-cli.json      # Hook definitions for Gemini CLI
-openclaw-plugin/
-  dist/index.js        # OpenClaw plugin (before_prompt_build hook)
-  openclaw.plugin.json # Plugin manifest
-install.sh             # Multi-CLI installer (claude-code, codex, gemini, openclaw)
-```
-
-**Zero dependencies.** No `node_modules`, no build step, no npm install. Just Node.js built-ins + semble CLI.
-
-## Graceful degradation
-
-If semble is not installed or unavailable:
-- Hooks silently approve without injecting code context
-- No errors, no broken CLI sessions
-- Debug log shows "semble not found, skipping"
-
 ## Complementary to memory hooks
 
-semble-hooks provides **code context** (`<relevant-code>`).
-[DREVIHO](https://github.com/benediktkraus/dreviho) provides **memory context** (`<relevant-memories>`).
+semble-hooks provides **code context** (`<relevant-code>`) — what's in the codebase right now.
+[DREVIHO](https://github.com/benediktkraus/dreviho) provides **memory context** (`<relevant-memories>`) — decisions, learnings, project knowledge.
 
-Both can run simultaneously — they inject different context tags and don't interfere with each other.
+Both run simultaneously. Different tags, different purpose, no interference.
+
+## Why not just use semble as MCP server?
+
+Semble has an MCP mode (`uvx --from "semble[mcp]" semble`). That works too — but it requires the agent to **decide** to call the search tool. With hooks, every prompt gets code context automatically. No agent decision needed, no tool call overhead, no missed context.
 
 ## License
 
