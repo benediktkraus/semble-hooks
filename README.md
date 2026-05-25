@@ -5,16 +5,18 @@
 [![Semble](https://img.shields.io/badge/powered%20by-Semble-purple.svg)](https://github.com/MinishLab/semble)
 [![CLIs](https://img.shields.io/badge/CLIs-Claude%20Code%20%7C%20Codex%20%7C%20Gemini%20%7C%20OpenClaw-orange.svg)](#supported-clis)
 
-Code-intelligence hooks for AI coding CLIs. Every prompt gets the most relevant code chunks from your project — automatically, locally, zero config.
+Code-intelligence hooks for AI coding CLIs. Coding sessions get relevant code chunks automatically, locally, with bounded scope and CPU guards.
 
 Powered by [Semble](https://github.com/MinishLab/semble) semantic code search (98% token savings vs grep+read, CPU-only, no API key).
 
 ## How it works
 
 ```
-You type a prompt
+You type a prompt in a coding session
     ↓
-Hook calls `semble search` with your prompt
+Hook resolves a safe code scope
+    ↓
+Hook calls `semble search` with your prompt and that scope
     ↓
 Semble finds relevant functions/classes (16MB static model, CPU-only)
     ↓
@@ -25,7 +27,7 @@ Agent understands your codebase without grep/read cycles
 
 **Before semble-hooks:** Agent spends 5-10 turns doing `grep` → `read` → `grep` → `read` to find relevant code. Burns tokens and time.
 
-**After semble-hooks:** Agent gets the 5 most relevant code chunks in the first turn. Answers are better and faster.
+**After semble-hooks:** Agent gets the most relevant code chunks in the first turn, without depending on the model to remember an MCP tool call.
 
 ## Supported CLIs
 
@@ -37,7 +39,7 @@ Agent understands your codebase without grep/read cycles
 | [OpenClaw](https://github.com/benediktkraus/openclaw) | before_prompt_build (plugin) | — |
 
 **Recall Hook** — runs on every prompt, injects relevant code chunks.
-**Bootstrap Hook** — runs on session start, warms up the Semble index for faster first search.
+**Bootstrap Hook** — optional session-start warmup, disabled by default for CPU safety.
 
 ## Prerequisites
 
@@ -98,23 +100,59 @@ Config file: `~/.semble-hooks/config.json` (works without config — sensible de
 
 ```json
 {
+  "enabled": true,
   "topK": 5,
   "semblePath": "semble",
   "timeout": 8000,
+  "bootstrapEnabled": false,
   "debug": false,
-  "includeTextFiles": false
+  "includeTextFiles": false,
+  "searchPaths": [],
+  "maxTargets": 4,
+  "lockTtlMs": 60000,
+  "cooldownMs": 2000,
+  "maxQueryChars": 600,
+  "blockedPaths": [
+    "/",
+    "~",
+    "/home",
+    "/root",
+    "/mnt",
+    "/mnt/onedrive",
+    "/mnt/onedrive/Workspace",
+    "/mnt/onedrive/Workspace/projects",
+    "/opt"
+  ]
 }
 ```
 
 | Key | Default | Description |
 |-----|---------|-------------|
+| `enabled` | `true` | Enable automatic recall hooks |
 | `topK` | `5` | Number of code chunks to inject (1-20) |
 | `semblePath` | `"semble"` | Path to semble binary |
 | `timeout` | `8000` | Search timeout in ms (1000-30000) |
 | `bootstrapTimeout` | `120000` | Warmup timeout in ms |
+| `bootstrapEnabled` | `false` | Enable SessionStart warmup search |
 | `debug` | `false` | Enable JSON Lines logging |
 | `includeTextFiles` | `false` | Also index .md, .yaml, .json files |
 | `minQueryLength` | `3` | Minimum prompt length to trigger search |
+| `maxQueryChars` | `600` | Query text sent to Semble is normalized and truncated to this size |
+| `searchPaths` | `[]` | Explicit paths or git URLs to search; empty means current working directory |
+| `maxTargets` | `4` | Maximum explicit search targets per hook invocation |
+| `lockTtlMs` | `60000` | Per-repo lock TTL to avoid concurrent indexing |
+| `cooldownMs` | `2000` | Per-repo cooldown to avoid repeated back-to-back searches |
+| `blockedPaths` | see config | Broad parent paths hooks must not search unless removed from config |
+
+### CPU safety
+
+Hooks do not blindly search the shell working directory. With empty `searchPaths`, the hook resolves the Git root for the current coding session and searches that. If there is no Git root, it searches the current directory only when it is not one of the configured broad parent paths.
+
+For broad, multi-repo, or GitHub work, set `searchPaths` explicitly, for example `["/path/repo-a", "/path/repo-b"]` or `["https://github.com/org/repo"]`. Explicit paths are still capped by `maxTargets`.
+
+Each hook invocation uses native thread limits, a per-target lock, a per-target cooldown, a timeout, and a truncated query. That keeps the hook semi-live without letting parallel sessions stampede one large workspace parent.
+
+Bootstrap is disabled by default because the currently installed Semble CLI builds an in-process index for the hook process. Enable `bootstrapEnabled` only when that extra startup CPU is intentional.
 
 ### Environment variables
 
@@ -122,6 +160,8 @@ Config file: `~/.semble-hooks/config.json` (works without config — sensible de
 |----------|-------------|
 | `SEMBLE_HOOKS_CONFIG` | Custom config file path |
 | `SEMBLE_PATH` | Override semble binary path |
+| `SEMBLE_HOOKS_DISABLED` | Set to `1` to disable automatic hooks |
+| `SEMBLE_HOOKS_SEARCH_PATHS` | JSON array or comma-separated search paths |
 | `SEMBLE_HOOKS_DEBUG` | Set to `1` to enable debug logging |
 | `SEMBLE_HOOKS_DEBUG_LOG` | Custom log file path |
 
@@ -141,7 +181,7 @@ scripts/
   config.mjs           # Config loader (defaults + JSON + ENV)
   debug-log.mjs        # Structured JSON Lines logger
   code-recall.mjs      # Recall hook — the core: prompt → semble search → inject
-  code-bootstrap.mjs   # Bootstrap hook — warms up semble index on session start
+  code-bootstrap.mjs   # Optional bootstrap hook — disabled by default for CPU safety
 hooks/
   claude-code.json     # Hook definitions for Claude Code
   codex-cli.json       # Hook definitions for Codex CLI
@@ -173,9 +213,11 @@ semble-hooks provides **code context** (`<relevant-code>`) — what's in the cod
 
 Both run simultaneously. Different tags, different purpose, no interference.
 
-## Why not just use semble as MCP server?
+## Why hooks and MCP?
 
-Semble has an MCP mode (`uvx --from "semble[mcp]" semble`). That works too — but it requires the agent to **decide** to call the search tool. With hooks, every prompt gets code context automatically. No agent decision needed, no tool call overhead, no missed context.
+Semble has an MCP mode (`uvx --from "semble[mcp]" semble`). That should be exposed centrally through your MCP proxy so every agent uses one managed MCP surface.
+
+Hooks are still useful for coding sessions because they do not depend on the model deciding to call MCP. The hook is the semi-live trigger; MCP is the shared on-demand tool surface.
 
 ## License
 

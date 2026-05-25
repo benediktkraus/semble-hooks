@@ -23,6 +23,7 @@ install_scripts() {
   mkdir -p "$HOOKS_HOME/scripts" "$HOOKS_HOME/hooks"
   cp "$SCRIPT_DIR/scripts/config.mjs" "$HOOKS_HOME/scripts/"
   cp "$SCRIPT_DIR/scripts/debug-log.mjs" "$HOOKS_HOME/scripts/"
+  cp "$SCRIPT_DIR/scripts/safety.mjs" "$HOOKS_HOME/scripts/"
   cp "$SCRIPT_DIR/scripts/code-recall.mjs" "$HOOKS_HOME/scripts/"
   cp "$SCRIPT_DIR/scripts/code-bootstrap.mjs" "$HOOKS_HOME/scripts/"
   info "scripts → $HOOKS_HOME/scripts/"
@@ -67,8 +68,10 @@ PLUGIN
 
   cp "$SCRIPT_DIR/hooks/codex-cli.json" "$dir/hooks.json"
   cp "$SCRIPT_DIR/scripts/code-recall.mjs" "$dir/scripts/"
+  cp "$SCRIPT_DIR/scripts/code-bootstrap.mjs" "$dir/scripts/"
   cp "$SCRIPT_DIR/scripts/config.mjs" "$dir/scripts/"
   cp "$SCRIPT_DIR/scripts/debug-log.mjs" "$dir/scripts/"
+  cp "$SCRIPT_DIR/scripts/safety.mjs" "$dir/scripts/"
 
   # Marketplace manifest
   mkdir -p "$mkt/.agents/plugins"
@@ -76,12 +79,27 @@ PLUGIN
     python3 -c "
 import json
 d=json.load(open('$mkt/.agents/plugins/marketplace.json'))
-d.setdefault('plugins',{})['semble-hooks']={'installStatus':'INSTALLED_BY_DEFAULT','icon':'🔍'}
+p=d.setdefault('plugins', [])
+entry={
+  'name':'semble-hooks',
+  'source':{'source':'local','path':'./plugins/semble-hooks'},
+  'policy':{'installation':'INSTALLED_BY_DEFAULT'},
+  'category':'Productivity'
+}
+if isinstance(p, list):
+    for i,item in enumerate(p):
+        if item.get('name') == 'semble-hooks':
+            p[i]=entry
+            break
+    else:
+        p.append(entry)
+elif isinstance(p, dict):
+    p['semble-hooks']={'installStatus':'INSTALLED_BY_DEFAULT'}
 json.dump(d,open('$mkt/.agents/plugins/marketplace.json','w'),indent=2)
 " 2>/dev/null || warn "Could not update marketplace.json — update manually"
   else
     cat > "$mkt/.agents/plugins/marketplace.json" << 'MKT'
-{"plugins":{"semble-hooks":{"installStatus":"INSTALLED_BY_DEFAULT","icon":"🔍"}}}
+{"plugins":[{"name":"semble-hooks","source":{"source":"local","path":"./plugins/semble-hooks"},"policy":{"installation":"INSTALLED_BY_DEFAULT"},"category":"Productivity"}]}
 MKT
   fi
 
@@ -95,8 +113,10 @@ install_gemini() {
 
   cp "$SCRIPT_DIR/hooks/gemini-cli.json" "$dir/hooks/hooks.json"
   cp "$SCRIPT_DIR/scripts/code-recall.mjs" "$dir/scripts/"
+  cp "$SCRIPT_DIR/scripts/code-bootstrap.mjs" "$dir/scripts/"
   cp "$SCRIPT_DIR/scripts/config.mjs" "$dir/scripts/"
   cp "$SCRIPT_DIR/scripts/debug-log.mjs" "$dir/scripts/"
+  cp "$SCRIPT_DIR/scripts/safety.mjs" "$dir/scripts/"
 
   # Enable extension
   local enable="$HOME/.gemini/extensions/extension-enablement.json"

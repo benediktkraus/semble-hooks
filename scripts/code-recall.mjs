@@ -3,6 +3,15 @@
 import { execFileSync } from "node:child_process";
 import { loadConfig } from "./config.mjs";
 import { createLogger } from "./debug-log.mjs";
+import {
+  acquireLock,
+  cooldownActive,
+  describeTargets,
+  limitedEnv,
+  markCooldown,
+  normalizeQuery,
+  resolveSearchTargets,
+} from "./safety.mjs";
 
 const cfg = loadConfig();
 const { log, logError } = createLogger("code-recall");
@@ -21,7 +30,7 @@ function findSemble() {
   // Absolute path → check directly via execFileSync test call
   if (cfg.semblePath.startsWith("/")) {
     try {
-      execFileSync(cfg.semblePath, ["--help"], { stdio: "pipe", timeout: 5000 });
+      execFileSync(cfg.semblePath, ["--help"], { stdio: "pipe", timeout: 5000, env: limitedEnv() });
       return true;
     } catch { return false; }
   }
@@ -64,7 +73,8 @@ function formatChunks(chunks) {
   if (chunks.length === 0) return null;
   const parts = chunks.map(c => {
     const loc = c.startLine ? `${c.file}:${c.startLine}-${c.endLine}` : c.file;
-    return `### ${loc} (score: ${c.score.toFixed(3)})\n\`\`\`\n${c.code}\n\`\`\``;
+    const prefix = c.source ? `${c.source} :: ` : "";
+    return `### ${prefix}${loc} (score: ${c.score.toFixed(3)})\n\`\`\`\n${c.code}\n\`\`\``;
   });
   return "<relevant-code>\nThe following code chunks from the current project may be relevant:\n" +
     parts.join("\n\n") +
@@ -83,8 +93,19 @@ async function main() {
     return;
   }
 
-  const userPrompt = (input.prompt || "").trim();
-  log("start", { query: userPrompt.slice(0, 200), queryLength: userPrompt.length });
+  const rawPrompt = (input.prompt || "").trim();
+  const userPrompt = normalizeQuery(rawPrompt, cfg.maxQueryChars);
+  log("start", {
+    query: userPrompt.slice(0, 200),
+    queryLength: userPrompt.length,
+    rawQueryLength: rawPrompt.length,
+  });
+
+  if (!cfg.enabled) {
+    log("skip", { reason: "disabled" });
+    approve();
+    return;
+  }
 
   if (!userPrompt || userPrompt.length < cfg.minQueryLength) {
     log("skip", { reason: "query too short" });
@@ -98,43 +119,75 @@ async function main() {
     return;
   }
 
-  const args = ["search", userPrompt, ".", "-k", String(cfg.topK)];
-  if (cfg.includeTextFiles) args.push("--include-text-files");
+  const cwd = input.cwd || input.projectRoot || input.workspacePath || process.cwd();
+  const resolved = resolveSearchTargets(cfg, cwd);
+  log("targets", describeTargets(resolved));
+  if (resolved.targets.length === 0) {
+    log("skip", { reason: "no safe search targets", skipped: resolved.skipped });
+    approve();
+    return;
+  }
 
-  let raw;
-  try {
-    raw = execFileSync(cfg.semblePath, args, {
-      encoding: "utf-8",
-      timeout: cfg.timeout,
-      cwd: process.cwd(),
-      stdio: ["pipe", "pipe", "pipe"],
-    });
-  } catch (err) {
-    if (err.killed) {
-      logError("timeout", { timeout: cfg.timeout });
-    } else {
-      logError("exec", err);
+  const allChunks = [];
+  const perTargetK = Math.max(1, Math.ceil(cfg.topK / resolved.targets.length));
+  for (const target of resolved.targets) {
+    const cooldown = cooldownActive("recall", target.path, cfg.cooldownMs);
+    if (cooldown.active) {
+      log("skip_target", { reason: "cooldown", path: target.path, remainingMs: Math.ceil(cooldown.remainingMs) });
+      continue;
     }
-    approve();
-    return;
+
+    const lock = acquireLock("recall", target.path, cfg.lockTtlMs);
+    if (!lock.acquired) {
+      log("skip_target", { reason: lock.reason, path: target.path });
+      continue;
+    }
+
+    const args = ["search", userPrompt, target.path, "-k", String(perTargetK)];
+    if (cfg.includeTextFiles) args.push("--include-text-files");
+
+    let raw;
+    try {
+      log("exec", { path: target.path, timeout: cfg.timeout });
+      markCooldown("recall", target.path);
+      raw = execFileSync(cfg.semblePath, args, {
+        encoding: "utf-8",
+        timeout: cfg.timeout,
+        cwd: target.cwd,
+        env: limitedEnv(),
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+    } catch (err) {
+      if (err.killed || err.signal) {
+        logError("timeout", { path: target.path, timeout: cfg.timeout, signal: err.signal });
+      } else {
+        logError("exec", err);
+      }
+      continue;
+    } finally {
+      lock.release();
+    }
+
+    if (!raw || !raw.trim()) {
+      log("skip_target", { reason: "empty semble output", path: target.path });
+      continue;
+    }
+
+    const chunks = parseSembleOutput(raw);
+    log("parsed", { path: target.path, chunkCount: chunks.length, files: chunks.map(c => c.file) });
+    for (const chunk of chunks) {
+      chunk.source = resolved.targets.length > 1 ? target.path : "";
+      allChunks.push(chunk);
+    }
   }
 
-  if (!raw || !raw.trim()) {
-    log("skip", { reason: "empty semble output" });
-    approve();
-    return;
-  }
-
-  const chunks = parseSembleOutput(raw);
-  log("parsed", { chunkCount: chunks.length, files: chunks.map(c => c.file) });
-
-  if (chunks.length === 0) {
+  if (allChunks.length === 0) {
     log("skip", { reason: "no chunks parsed" });
     approve();
     return;
   }
 
-  const block = formatChunks(chunks);
+  const block = formatChunks(allChunks.slice(0, cfg.topK));
   approve(block);
 }
 

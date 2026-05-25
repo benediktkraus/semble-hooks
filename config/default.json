@@ -1,9 +1,27 @@
 {
+  "enabled": true,
   "topK": 5,
   "semblePath": "semble",
   "timeout": 8000,
   "bootstrapTimeout": 120000,
+  "bootstrapEnabled": false,
   "minQueryLength": 3,
+  "maxQueryChars": 600,
+  "searchPaths": [],
+  "maxTargets": 4,
+  "lockTtlMs": 60000,
+  "cooldownMs": 2000,
+  "blockedPaths": [
+    "/",
+    "~",
+    "/home",
+    "/root",
+    "/mnt",
+    "/mnt/onedrive",
+    "/mnt/onedrive/Workspace",
+    "/mnt/onedrive/Workspace/projects",
+    "/opt"
+  ],
   "includeTextFiles": false,
   "excludePatterns": [],
   "debug": false
