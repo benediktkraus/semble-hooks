@@ -10,7 +10,7 @@ open-source
 - Node.js >= 18 (ESM, .mjs, keine npm Dependencies)
 - Semble CLI v0.2.0 (`semble search "query" [path] -k N`) — Python, CPU-only, potion-code-16M
 - Native child_process (execFileSync mit Array-Args)
-- Hook-Systeme: Claude Code UserPromptSubmit/SessionStart, Codex hooks.json, Gemini hooks.json
+- Hook-Systeme: Claude Code UserPromptSubmit/SessionStart, Codex hooks.json, Gemini hooks.json, OpenClaw Plugin (before_prompt_build)
 
 ## Architektur-Referenz
 DREVIHO Repo (ehemals openviking-hooks): `/mnt/onedrive/Workspace/projects/openviking-hooks-fork`
@@ -28,6 +28,7 @@ DREVIHO Repo (ehemals openviking-hooks): `/mnt/onedrive/Workspace/projects/openv
 - [2026-05-22]: Config unter ~/.semble-hooks/config.json — eigener Namespace, kein OV-Dependency
 - [2026-05-22]: Lizenz Apache-2.0 — permissive, Patent Grant
 - [2026-05-22]: Node.js ESM (.mjs), kein TypeScript, kein Build-Step — minimale Dependencies
+- [2026-05-25]: OpenClaw Plugin via before_prompt_build Hook — gleiche Tiefe wie OpenViking-Enhanced
 
 ## Regeln
 - Kein execSync — nur execFileSync mit Array-Args
@@ -56,4 +57,7 @@ DREVIHO Repo (ehemals openviking-hooks): `/mnt/onedrive/Workspace/projects/openv
 | hooks/claude-code.json | Hook-Definitionen Claude Code |
 | hooks/codex-cli.json | Hook-Definitionen Codex CLI |
 | hooks/gemini-cli.json | Hook-Definitionen Gemini CLI |
-| install.sh | Multi-CLI Installer |
+| openclaw-plugin/ | OpenClaw Plugin (before_prompt_build) |
+| openclaw-plugin/dist/index.js | OC Plugin Entry Point |
+| openclaw-plugin/openclaw.plugin.json | OC Plugin Manifest |
+| install.sh | Multi-CLI Installer (claude-code, codex, gemini, openclaw) |

@@ -112,6 +112,35 @@ json.dump(d,open('$enable','w'),indent=2)
   info "gemini: extension → $dir"
 }
 
+install_openclaw() {
+  local plugin_dir="/opt/openclaw/plugins/semble-hooks"
+  mkdir -p "$plugin_dir/dist"
+
+  cp "$SCRIPT_DIR/openclaw-plugin/package.json" "$plugin_dir/"
+  cp "$SCRIPT_DIR/openclaw-plugin/openclaw.plugin.json" "$plugin_dir/"
+  cp "$SCRIPT_DIR/openclaw-plugin/dist/index.js" "$plugin_dir/dist/"
+
+  # Register in openclaw.json
+  local oc_cfg="$HOME/.openclaw/openclaw.json"
+  if [[ -f "$oc_cfg" ]]; then
+    python3 -c "
+import json
+with open('$oc_cfg','r') as f: cfg=json.load(f)
+paths=cfg.setdefault('plugins',{}).setdefault('load',{}).setdefault('paths',[])
+if '$plugin_dir' not in paths: paths.append('$plugin_dir')
+entries=cfg['plugins'].setdefault('entries',{})
+if 'semble-hooks' not in entries:
+    entries['semble-hooks']={'enabled':True,'config':{'topK':5,'semblePath':'/root/.local/bin/semble','timeout':8000}}
+with open('$oc_cfg','w') as f: json.dump(cfg,f,indent=2)
+" 2>/dev/null && info "openclaw: plugin registered in $oc_cfg" || warn "Could not update openclaw.json"
+  else
+    info "openclaw: config not found at $oc_cfg — install openclaw first"
+  fi
+
+  info "openclaw: plugin → $plugin_dir"
+  info "  restart gateway to activate: sudo systemctl restart openclaw-gateway"
+}
+
 # --- Main ---
 CLI="${1:-all}"
 
@@ -122,12 +151,14 @@ case "$CLI" in
   claude-code|claude) install_claude_code ;;
   codex)              install_codex ;;
   gemini)             install_gemini ;;
+  openclaw|oc)        install_openclaw ;;
   all)
     install_claude_code
     install_codex
     install_gemini
+    install_openclaw
     ;;
-  *) fail "Unknown CLI: $CLI. Use: claude-code, codex, gemini, all" ;;
+  *) fail "Unknown CLI: $CLI. Use: claude-code, codex, gemini, openclaw, all" ;;
 esac
 
 info "done. Hooks installed to $HOOKS_HOME"

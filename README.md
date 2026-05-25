@@ -28,6 +28,7 @@ Agent understands your codebase without grep/read cycles
 | [Claude Code](https://claude.ai/code) | UserPromptSubmit | SessionStart |
 | [Codex CLI](https://github.com/openai/codex) | UserPromptSubmit | — |
 | [Gemini CLI](https://github.com/google-gemini/gemini-cli) | BeforeAgent | — |
+| [OpenClaw](https://github.com/benediktkraus/openclaw) | before_prompt_build | — |
 
 ## Prerequisites
 
@@ -44,6 +45,7 @@ cd semble-hooks
 ./install.sh claude-code  # Install for Claude Code only
 ./install.sh codex        # Install for Codex CLI only
 ./install.sh gemini       # Install for Gemini CLI only
+./install.sh openclaw     # Install for OpenClaw only
 ```
 
 The installer copies hooks to `~/.semble-hooks/` and registers them with your CLI.
@@ -132,7 +134,10 @@ hooks/
   claude-code.json     # Hook definitions for Claude Code
   codex-cli.json       # Hook definitions for Codex CLI
   gemini-cli.json      # Hook definitions for Gemini CLI
-install.sh             # Multi-CLI installer
+openclaw-plugin/
+  dist/index.js        # OpenClaw plugin (before_prompt_build hook)
+  openclaw.plugin.json # Plugin manifest
+install.sh             # Multi-CLI installer (claude-code, codex, gemini, openclaw)
 ```
 
 **Zero dependencies.** No `node_modules`, no build step, no npm install. Just Node.js built-ins + semble CLI.

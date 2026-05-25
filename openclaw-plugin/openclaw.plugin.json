@@ -1,0 +1,18 @@
+{
+  "id": "semble-hooks",
+  "name": "Semble Code Intelligence",
+  "description": "Injects relevant code chunks from current project via Semble semantic search",
+  "version": "1.0.0",
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "topK": { "type": "number", "default": 5 },
+      "semblePath": { "type": "string", "default": "/root/.local/bin/semble" },
+      "timeout": { "type": "number", "default": 8000 }
+    },
+    "additionalProperties": false
+  },
+  "contracts": {
+    "tools": []
+  }
+}
