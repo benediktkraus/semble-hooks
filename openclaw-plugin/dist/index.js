@@ -73,15 +73,16 @@ export default definePluginEntry({
     const pluginCfg = api.config || {};
     const cfg = { ...DEFAULT_CFG, ...pluginCfg };
 
-    api.hooks.on("before_prompt_build", async (ctx) => {
-      const query = (ctx.prompt || "").trim();
+    api.hooks.on("before_prompt_build", async (event) => {
+      const query = (event.prompt || "").trim();
       const block = sembleSearch(query, cfg);
       if (block) {
-        ctx.addSystemContext(block);
-        api.logger.debug(`semble: injected code context for query "${query.slice(0, 50)}..."`);
+        api.logger.debug(`semble: injected ${block.length} chars for "${query.slice(0, 50)}..."`);
+        return { appendSystemContext: block };
       }
+      return {};
     });
 
-    api.logger.info("semble-hooks: registered before_prompt_build hook");
+    api.logger.info("semble-hooks: before_prompt_build hook registered");
   },
 });
