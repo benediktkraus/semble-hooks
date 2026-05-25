@@ -1,5 +1,18 @@
 {
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${extensionPath}/scripts/code-bootstrap.mjs",
+            "name": "semble-bootstrap",
+            "description": "Warm up Semble code index for current project",
+            "timeout": 120000
+          }
+        ]
+      }
+    ],
     "BeforeAgent": [
       {
         "hooks": [
