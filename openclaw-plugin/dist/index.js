@@ -1,7 +1,7 @@
 import { definePluginEntry } from "openclaw/plugin-sdk/core";
 import { execFileSync } from "node:child_process";
 
-const DEFAULT_CFG = { topK: 5, semblePath: "/root/.local/bin/semble", timeout: 8000, minQueryLength: 3 };
+const DEFAULT_CFG = { topK: 5, semblePath: "semble", timeout: 8000, minQueryLength: 3 };
 
 function parseSembleOutput(raw) {
   const chunks = [];

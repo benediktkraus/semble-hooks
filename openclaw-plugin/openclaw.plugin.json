@@ -7,7 +7,7 @@
     "type": "object",
     "properties": {
       "topK": { "type": "number", "default": 5 },
-      "semblePath": { "type": "string", "default": "/root/.local/bin/semble" },
+      "semblePath": { "type": "string", "default": "semble" },
       "timeout": { "type": "number", "default": 8000 }
     },
     "additionalProperties": false

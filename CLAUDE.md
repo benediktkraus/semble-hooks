@@ -13,7 +13,7 @@ open-source
 - Hook-Systeme: Claude Code UserPromptSubmit/SessionStart, Codex hooks.json, Gemini hooks.json, OpenClaw Plugin (before_prompt_build)
 
 ## Architektur-Referenz
-DREVIHO Repo (ehemals openviking-hooks): `/mnt/onedrive/Workspace/projects/openviking-hooks-fork`
+DREVIHO Repo (ehemals openviking-hooks): https://github.com/benediktkraus/dreviho
 - `scripts/auto-recall.mjs` — Hook-Pattern (stdin JSON → stdout decision + additionalContext)
 - `scripts/config.mjs` — Multi-Agent Config Loader
 - `scripts/debug-log.mjs` — JSON Lines Logger

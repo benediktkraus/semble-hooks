@@ -36,10 +36,10 @@ README, CONTRIBUTING, Tests.
   SCOPE: Config-Loader für semble-hooks. JSON Config mit Defaults und ENV-Override.
   OBJECTIVE: Baue scripts/config.mjs — ein Config-Modul das ~/.semble-hooks/config.json liest, sinnvolle Defaults hat, und ENV-Overrides erlaubt. Pattern: DREVIHO config.mjs.
   CONTEXT:
-    Project: /mnt/onedrive/Workspace/projects/semble-hooks
+    Project: <project-root>
     Read first: CLAUDE.md, PRD.md (F-004)
     Tech: Node.js ESM (.mjs), keine Dependencies
-    Reference: /mnt/onedrive/Workspace/projects/openviking-hooks-fork/scripts/config.mjs
+    Reference: https://github.com/benediktkraus/dreviho/scripts/config.mjs
   EXISTING CODE: Nichts — erster Task.
   FORBIDDEN:
     - Do NOT use npm packages
@@ -71,10 +71,10 @@ README, CONTRIBUTING, Tests.
   SCOPE: Debug Logger für semble-hooks. JSON Lines Format.
   OBJECTIVE: Baue scripts/debug-log.mjs — ein Logger-Modul das strukturierte JSON Lines schreibt wenn Debug aktiv ist, sonst zero-cost no-ops. Kopiere das Pattern von DREVIHO.
   CONTEXT:
-    Project: /mnt/onedrive/Workspace/projects/semble-hooks
+    Project: <project-root>
     Read first: CLAUDE.md, scripts/config.mjs (T-001 muss fertig sein)
     Tech: Node.js ESM (.mjs), keine Dependencies
-    Reference: /mnt/onedrive/Workspace/projects/openviking-hooks-fork/scripts/debug-log.mjs
+    Reference: https://github.com/benediktkraus/dreviho/scripts/debug-log.mjs
   EXISTING CODE: scripts/config.mjs (T-001)
   FORBIDDEN:
     - Do NOT use npm packages (kein winston, kein pino)
@@ -108,12 +108,12 @@ README, CONTRIBUTING, Tests.
   SCOPE: Code-Recall Hook — Kernstück von semble-hooks. Injiziert relevanten Code-Context in AI Prompts.
   OBJECTIVE: Baue scripts/code-recall.mjs — ein UserPromptSubmit Hook der den User-Prompt von stdin liest, `semble search` aufruft, den Output parsed, und als <relevant-code> Block zurückgibt. Muss bei JEDEM Fehlerfall graceful approve ohne Context zurückgeben.
   CONTEXT:
-    Project: /mnt/onedrive/Workspace/projects/semble-hooks
+    Project: <project-root>
     Read first: CLAUDE.md, PRD.md (F-001), specs/temporal-flow.md (Flow 1)
     Tech: Node.js ESM (.mjs), child_process.execFileSync
-    Semble CLI: /root/.local/bin/semble v0.2.0
+    Semble CLI: semble v0.2.0 (pip install semble)
     Semble Output Format: Markdown mit "## N. file:lines [score=X]" + fenced code block
-    Reference: /mnt/onedrive/Workspace/projects/openviking-hooks-fork/scripts/auto-recall.mjs (Hook I/O Pattern)
+    Reference: https://github.com/benediktkraus/dreviho/scripts/auto-recall.mjs (Hook I/O Pattern)
   EXISTING CODE: scripts/config.mjs, scripts/debug-log.mjs
   FORBIDDEN:
     - Do NOT use execSync — only execFileSync with array args
@@ -148,7 +148,7 @@ README, CONTRIBUTING, Tests.
   SCOPE: Session Bootstrap Hook — wärmt Semble-Index beim Session-Start auf.
   OBJECTIVE: Baue scripts/code-bootstrap.mjs — ein SessionStart Hook der prüft ob semble installiert ist und einen Warmup-Search ausführt. Kein Context-Injection, nur Logging.
   CONTEXT:
-    Project: /mnt/onedrive/Workspace/projects/semble-hooks
+    Project: <project-root>
     Read first: CLAUDE.md, PRD.md (F-002), specs/temporal-flow.md (Flow 2)
     Tech: Node.js ESM (.mjs), child_process.execFileSync
   EXISTING CODE: scripts/config.mjs, scripts/debug-log.mjs, scripts/code-recall.mjs
@@ -180,9 +180,9 @@ README, CONTRIBUTING, Tests.
   SCOPE: Hook JSON Definitionen für 3 CLIs.
   OBJECTIVE: Erstelle hooks/claude-code.json, hooks/codex-cli.json, hooks/gemini-cli.json mit den korrekten Event-Names, Script-Pfaden und Timeouts pro CLI.
   CONTEXT:
-    Project: /mnt/onedrive/Workspace/projects/semble-hooks
+    Project: <project-root>
     Read first: CLAUDE.md, PRD.md (F-003)
-    Reference: /mnt/onedrive/Workspace/projects/openviking-hooks-fork/hooks/ (alle 3 JSON-Dateien)
+    Reference: https://github.com/benediktkraus/dreviho/hooks/ (alle 3 JSON-Dateien)
   EXISTING CODE: scripts/code-recall.mjs, scripts/code-bootstrap.mjs
   FORBIDDEN:
     - Do NOT add Stop/AfterAgent hooks (keine Capture-Funktionalität)
@@ -215,9 +215,9 @@ README, CONTRIBUTING, Tests.
   SCOPE: Multi-CLI Installer für semble-hooks.
   OBJECTIVE: Baue install.sh — ein Bash-Script das semble-hooks für Claude Code, Codex CLI und Gemini CLI installiert. Kopiert Scripts, erstellt Config, registriert Hooks.
   CONTEXT:
-    Project: /mnt/onedrive/Workspace/projects/semble-hooks
+    Project: <project-root>
     Read first: CLAUDE.md, PRD.md (F-006)
-    Reference: /mnt/onedrive/Workspace/projects/openviking-hooks-fork/install.sh
+    Reference: https://github.com/benediktkraus/dreviho/install.sh
   EXISTING CODE: scripts/*.mjs, hooks/*.json
   FORBIDDEN:
     - Do NOT install OpenViking or DREVIHO
@@ -249,9 +249,9 @@ README, CONTRIBUTING, Tests.
   SCOPE: README und OSS-Dateien für GitHub.
   OBJECTIVE: Erstelle README.md (Install, Usage, Config, Badges), package.json (Metadaten), LICENSE (Apache-2.0), CONTRIBUTING.md.
   CONTEXT:
-    Project: /mnt/onedrive/Workspace/projects/semble-hooks
+    Project: <project-root>
     Read first: CLAUDE.md, PRD.md, install.sh
-    Reference: /mnt/onedrive/Workspace/projects/openviking-hooks-fork/README.md
+    Reference: https://github.com/benediktkraus/dreviho/README.md
   EXISTING CODE: Alle Scripts, Hooks, install.sh
   FORBIDDEN:
     - Do NOT add npm dependencies

@@ -130,7 +130,7 @@ paths=cfg.setdefault('plugins',{}).setdefault('load',{}).setdefault('paths',[])
 if '$plugin_dir' not in paths: paths.append('$plugin_dir')
 entries=cfg['plugins'].setdefault('entries',{})
 if 'semble-hooks' not in entries:
-    entries['semble-hooks']={'enabled':True,'config':{'topK':5,'semblePath':'/root/.local/bin/semble','timeout':8000}}
+    entries['semble-hooks']={'enabled':True,'config':{'topK':5,'semblePath':'semble','timeout':8000}}
 with open('$oc_cfg','w') as f: json.dump(cfg,f,indent=2)
 " 2>/dev/null && info "openclaw: plugin registered in $oc_cfg" || warn "Could not update openclaw.json"
   else
